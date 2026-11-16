@@ -1,3 +1,4 @@
 flask>=3.0
+gunicorn>=23.0
 # Solo para regenerar los datos desde un PDF (python -m mir.pdf_import):
 pdfplumber>=0.10
