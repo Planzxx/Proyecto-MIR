@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plazas MIR</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Plazas <span>MIR</span></h1>
+      <p class="sub">Plazas adjudicadas del nº de orden 1 al {{ n_max }}, según el PDF (generado en mayo de 2022). Búscalas, fíltralas o simula tu elección con tu nota.</p>
+    </div>
+    <div class="kpis" aria-live="polite">
+      <div class="kpi"><b id="k-n">0</b><small>plazas en la selección</small></div>
+      <div class="kpi"><b id="k-max">–</b><small>último nº de orden</small></div>
+    </div>
+  </header>
+
+  <nav class="nav" role="group" aria-label="Vista">
+    <button type="button" id="t-list" aria-pressed="true">Plazas</button>
+    <button type="button" id="t-sum" aria-pressed="false">Resumen</button>
+    <button type="button" id="t-sim" aria-pressed="false">Simulador</button>
+  </nav>
+
+  <div class="bar" id="bar">
+    <div class="filters">
+      <div class="f"><label for="q">Buscar</label><input id="q" type="search" placeholder="Cardiología, La Paz, Sevilla…" autocomplete="off"></div>
+      <div class="f"><label for="fs">Especialidad</label><select id="fs"></select></div>
+      <div class="f"><label for="fc">Comunidad</label><select id="fc"></select></div>
+      <div class="f"><label for="fp">Provincia</label><select id="fp"></select></div>
+    </div>
+    <div class="row2">
+      <div class="f" style="flex:1 1 240px;min-width:0"><label for="fh">Centro</label><select id="fh"></select></div>
+      <div class="range">
+        <div class="f"><label for="n1">Nº orden desde</label><input id="n1" type="number" min="1" max="{{ n_max }}" inputmode="numeric" placeholder="1"></div>
+        <span>–</span>
+        <div class="f"><label for="n2">hasta</label><input id="n2" type="number" min="1" max="{{ n_max }}" inputmode="numeric" placeholder="{{ n_max }}"></div>
+      </div>
+      <button class="ghost" id="reset" type="button">Limpiar filtros</button>
+    </div>
+  </div>
+
+  <div class="meta" id="meta">
+    <div id="count"></div>
+    <div class="group-by" id="gb" hidden><label for="grp">Agrupar por</label>
+      <select id="grp"><option value="e">Especialidad</option><option value="c">Centro</option><option value="a">Comunidad</option><option value="p">Provincia</option></select></div>
+  </div>
+
+  <main id="out"></main>
+
+  <section id="sim" hidden>
+    <p class="note"><b>Cómo se simula.</b> Tu nota se convierte en nº de orden con la escala oficial de la convocatoria que elijas. Después se reproduce la elección real de plazas del listado (adjudicación de 2022, hasta el nº {{ n_max }}): en tu turno quedaban libres las plazas que en la realidad eligió alguien con un número igual o mayor que el tuyo.</p>
+
+    <div class="card">
+      <h2>Tu resultado</h2>
+      <p class="hint">Los valores iniciales son un ejemplo. Cámbialos por los tuyos.</p>
+      <div class="sim-grid">
+        <div class="fields">
+          <div class="f"><label for="sc">Escala de notas</label>
+            <select id="sc"><option value="2026">MIR 2026</option><option value="2025">MIR 2025</option></select></div>
+          <div class="f"><label for="sa">Aciertos</label><input id="sa" type="number" min="0" max="210" inputmode="numeric" placeholder="150"></div>
+          <div class="f"><label for="se">Errores</label><input id="se" type="number" min="0" max="210" inputmode="numeric" placeholder="40"></div>
+          <div class="f"><label for="sn">Netas</label><input id="sn" type="text" inputmode="decimal" placeholder="136,67"></div>
+          <div class="f"><label for="sx">Expediente (0–10)</label><input id="sx" type="text" inputmode="decimal" placeholder="7,5"></div>
+          <div class="f"><label for="sm">Margen de error</label>
+            <select id="sm"><option value="0">±0 %</option><option value="5">±5 %</option><option value="10">±10 %</option><option value="15">±15 %</option></select></div>
+          <div class="f wide"><label for="so">¿Ya sabes tu nº de orden? Sustituye al cálculo</label>
+            <input id="so" type="number" min="1" max="20000" inputmode="numeric" placeholder="Opcional"></div>
+        </div>
+        <div class="out" aria-live="polite">
+          <div><div class="big" id="o-ord">–</div><small id="o-rng">nº de orden estimado</small></div>
+          <div><div class="mid" id="o-tot">–</div><small>nota total sobre 100</small></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Tu lista de preferencias</h2>
+      <p class="hint">En orden de preferencia. Te toca la primera de la lista que siga libre en tu turno. Si no concretas centro, se elige el que antes eligieron los demás en la realidad.</p>
+      <div class="prefs" id="prefs"></div>
+      <div class="addrow">
+        <button class="btn line" type="button" id="p-add">Añadir preferencia</button>
+        <span class="muted" id="p-msg"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Qué plaza te tocaría</h2>
+      <p class="hint">El caso estimado usa tu nº de orden. El mejor y el peor caso lo mueven según el margen de error.</p>
+      <div id="sim-res"></div>
+    </div>
+
+    <div class="card">
+      <h2>Tu lista, preferencia a preferencia</h2>
+      <p class="hint">Estado de cada preferencia en tu turno estimado.</p>
+      <div id="sim-st"></div>
+    </div>
+
+    <div class="two">
+      <div class="card">
+        <h2>Qué quedaba en tu turno</h2>
+        <p class="hint" id="left-hint"></p>
+        <div class="left" id="sim-left"></div>
+        <div class="addrow"><button class="btn line" type="button" id="p-see">Ver todas las plazas libres en mi turno</button></div>
+      </div>
+      <div class="card near">
+        <h2>Los más cercanos a ti</h2>
+        <p class="hint">Lo que eligieron en la realidad los números alrededor del tuyo.</p>
+        <div class="list" id="sim-near"></div>
+      </div>
+    </div>
+
+    <details class="how">
+      <summary>Cómo se calcula y qué límites tiene</summary>
+      <ul>
+        <li>Nota total = examen × 90 ÷ media del 10 % mejor + expediente × 10 ÷ media del 10 % mejor expediente. Las medias son las oficiales de cada convocatoria (2026: 457,4 puntos y 8,816; 2025: 385,2 y 8,802).</li>
+        <li>El nº de orden sale de interpolar la tabla de netas por nº de orden publicada para cada convocatoria. Es una estimación, por eso se muestra un margen.</li>
+        <li>Las plazas son las del PDF, que parece ser de la adjudicación de 2022. Cada convocatoria reparte plazas distintas, así que úsalo como ensayo y no como predicción.</li>
+        <li>El PDF solo llega al nº {{ n_max }}. Las especialidades que se siguen eligiendo después de ese número (Familia, Medicina Interna, Pediatría, Psiquiatría…) tienen más plazas de las que se ven, y no se marcan como agotadas.</li>
+        <li>Si cambia tu posición, las personas que van detrás eligen con una plaza menos, pero eso no altera lo que tú encuentras en tu turno.</li>
+      </ul>
+    </details>
+  </section>
+
+
+  <footer>
+    <p><b>Nº orden</b> es el número de orden del aspirante en la prueba; <b>Adj.</b> es el orden en que se adjudicó la plaza. En el resumen, «último nº de orden» es el número más alto que eligió plaza en esa selección.</p>
+    <p>Datos extraídos del PDF «Listado de plazas adjudicadas 1–4800». Sus metadatos indican que se generó el 11 de mayo de 2022 y sus cifras no coinciden con las publicadas de 2025, así que se trata de otra convocatoria. Comunidad y provincia se han añadido según la localidad. El PDF repite tres plazas en varias páginas y no incluye el orden de adjudicación 3975, así que la lista tiene {{ total_txt }} plazas.</p>
+  </footer>
+</div>
+
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
